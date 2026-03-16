@@ -75,8 +75,30 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
       text = buffer.toString('utf-8');
     } else if (req.body?.text) {
       text = String(req.body.text).slice(0, 2_000_000); // ~500k tokens safe
+    } else if (req.body?.fileBase64 && req.body?.mimeType === 'application/pdf') {
+      const contents = [
+        {
+          role: 'user',
+          parts: [
+            { text: PARSE_PROMPT },
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: req.body.fileBase64,
+              },
+            },
+          ],
+        },
+      ];
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents,
+      });
+      const out = (response && typeof response.text === 'string') ? response.text : '';
+      const questions = extractJson(out);
+      return res.json({ questions: questions || [] });
     } else {
-      return res.status(400).json({ error: 'Provide a file or text in body' });
+      return res.status(400).json({ error: 'Provide a file, text, or { fileBase64, mimeType } in body' });
     }
 
     const response = await ai.models.generateContent({
