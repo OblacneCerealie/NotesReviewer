@@ -11,9 +11,19 @@ dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env'
 const app = express();
 const PORT = process.env.PORT || 3001;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const PASSWORD = process.env.PASSWORD || '';
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '52mb' }));
+
+/** Optional password protection: require X-App-Password header on /api routes. */
+function authMiddleware(req, res, next) {
+  if (!PASSWORD) return next();
+  if (req.path === '/api/check' || req.originalUrl === '/api/check') return next();
+  const provided = req.headers['x-app-password'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '');
+  if (provided === PASSWORD) return next();
+  res.status(401).json({ error: 'Password required' });
+}
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -42,6 +52,16 @@ function extractJson(text) {
     return null;
   }
 }
+
+/** /api/check: no auth required; returns 200 if no password or valid password, 401 otherwise. */
+app.get('/api/check', (req, res) => {
+  if (!PASSWORD) return res.json({ ok: true });
+  const provided = req.headers['x-app-password'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '');
+  if (provided === PASSWORD) return res.json({ ok: true });
+  res.status(401).json({ error: 'Password required' });
+});
+
+app.use('/api', authMiddleware);
 
 app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   try {
@@ -139,5 +159,19 @@ app.post('/api/explain', async (req, res) => {
     res.status(500).json({ error: err?.message || 'Failed to get explanation' });
   }
 });
+
+/** Serve static build in production (Railway, Render, etc.) */
+const __dirname2 = dirname(fileURLToPath(import.meta.url));
+const distPath = join(__dirname2, '..', 'dist');
+try {
+  const { existsSync } = await import('fs');
+  if (existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(join(distPath, 'index.html'));
+    });
+  }
+} catch {}
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

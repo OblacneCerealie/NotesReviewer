@@ -3,6 +3,34 @@ import type { QuizQuestion, ExplainResponse } from './types';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 const IS_VERCEL = !API_BASE && typeof window !== 'undefined' && !/^localhost$|^127\.0\.0\.1$/.test(window.location.hostname);
 
+const AUTH_STORAGE_KEY = 'app_password';
+
+export function getStoredPassword(): string | null {
+  return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_STORAGE_KEY) : null;
+}
+
+export function setStoredPassword(p: string): void {
+  sessionStorage?.setItem(AUTH_STORAGE_KEY, p);
+}
+
+export function clearStoredPassword(): void {
+  sessionStorage?.removeItem(AUTH_STORAGE_KEY);
+}
+
+function authHeaders(): Record<string, string> {
+  const p = getStoredPassword();
+  return p ? { 'X-App-Password': p } : {};
+}
+
+export async function checkAuth(): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/api/check`, { headers: authHeaders() });
+  if (res.status === 401) {
+    clearStoredPassword();
+    return false;
+  }
+  return res.ok;
+}
+
 export async function parseDocument(file: File): Promise<QuizQuestion[]> {
   const url = `${API_BASE}/api/parse-document`;
   let res: Response;
@@ -24,13 +52,18 @@ export async function parseDocument(file: File): Promise<QuizQuestion[]> {
     }
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     });
   } else {
     const form = new FormData();
     form.append('file', file);
-    res = await fetch(url, { method: 'POST', body: form });
+    res = await fetch(url, { method: 'POST', body: form, headers: authHeaders() });
+  }
+  if (res.status === 401) {
+    clearStoredPassword();
+    window.dispatchEvent(new CustomEvent('auth-required'));
+    throw new Error('Password required');
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -52,9 +85,14 @@ export async function parseDocument(file: File): Promise<QuizQuestion[]> {
 export async function parseDocumentText(text: string): Promise<QuizQuestion[]> {
   const res = await fetch(`${API_BASE}/api/parse-document`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ text }),
   });
+  if (res.status === 401) {
+    clearStoredPassword();
+    window.dispatchEvent(new CustomEvent('auth-required'));
+    throw new Error('Password required');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Failed to parse document');
@@ -80,7 +118,7 @@ export async function getExplanation(
 ): Promise<ExplainResponse> {
   const res = await fetch(`${API_BASE}/api/explain`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       question,
       options,
@@ -88,6 +126,11 @@ export async function getExplanation(
       selectedIndex,
     }),
   });
+  if (res.status === 401) {
+    clearStoredPassword();
+    window.dispatchEvent(new CustomEvent('auth-required'));
+    throw new Error('Password required');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Failed to get explanation');

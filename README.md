@@ -96,7 +96,30 @@ Deploy to Vercel so both the frontend and API run together. Your `GEMINI_KEY` fr
 
 The app will be available at `https://your-project.vercel.app` with full quiz, parsing, and explanations.
 
-**Limits:** Vercel serverless has a 4.5 MB request limit. Files over 3 MB will show an error; use local dev (`npm run dev:all`) for files up to 50 MB.
+**Limits:** Vercel serverless has a 4.5 MB request limit. Files over 3 MB will show an error; use **Railway** or **Render** below for 50 MB.
+
+---
+
+### Railway or Render (50 MB + friends-only)
+
+For a single URL with **full 50 MB** support and optional **password protection** (friends only):
+
+1. **Deploy**
+   - **Railway:** New project → Deploy from GitHub → select this repo. Or: `npx railway init` in the project folder.
+   - **Render:** New → Web Service → connect repo → use these settings (or `render.yaml` in the repo):
+     - Build: `npm install && npm run build`
+     - Start: `node server/index.js`
+     - Root directory: project root
+
+2. **Environment variables** (add in the host’s dashboard)
+   - `GEMINI_KEY` — your Gemini API key
+   - `PASSWORD` (optional) — shared password; if set, visitors must enter it to use the app (friends only)
+
+3. **Build command**
+   - Use `npm run build` (or `npm install && npm run build`) so the frontend is built.
+   - Start command: `node server/index.js` (serves both API and static files).
+
+The app will be at `https://your-app.railway.app` or `https://your-app.onrender.com` with 50 MB uploads and optional password gate.
 
 ---
 

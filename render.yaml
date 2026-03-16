@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: notes-reviewer
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_KEY
+        sync: false
+      - key: PASSWORD
+        sync: false
