@@ -85,7 +85,7 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
           },
         ];
         const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash',
           contents,
         });
         const out = (response && typeof response.text === 'string') ? response.text : '';
@@ -111,7 +111,7 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
         },
       ];
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents,
       });
       const out = (response && typeof response.text === 'string') ? response.text : '';
@@ -122,7 +122,7 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: PARSE_PROMPT + '\n\nDocument:\n' + text }] }],
     });
     const out = (response && typeof response.text === 'string') ? response.text : '';
@@ -144,7 +144,7 @@ app.post('/api/explain', async (req, res) => {
     const selectedAnswer = options[Number(selectedIndex)] ?? 'Unknown';
     const prompt = `Question: ${question}\nOptions: ${options.join(' | ')}\nCorrect answer: ${correctAnswer}\nThe user incorrectly selected: ${selectedAnswer}\n\nRespond with exactly two short paragraphs: 1) "EXPLANATION:" then 2-3 sentences explaining why the correct answer is right. 2) "TIP:" then one short memorable tip to remember this. Keep it concise.`;
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
     const text = (response && typeof response.text === 'string') ? response.text : '';
