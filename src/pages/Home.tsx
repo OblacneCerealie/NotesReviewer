@@ -3,13 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { parseDocument } from '../api';
 import { getProgress, saveSession } from '../storage';
 import type { QuizQuestion } from '../types';
+import { useLocale } from '../LocaleContext';
+import { t } from '../i18n';
 import './Home.css';
 
-const MAX_SIZE_MB = 50;
+const isLocalhost = typeof window !== 'undefined' && /^localhost$|^127\.0\.0\.1$/.test(window.location.hostname);
+const MAX_SIZE_MB = isLocalhost ? 50 : 3;
 const MAX_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 export default function Home() {
   const navigate = useNavigate();
+  const { locale, setLocale } = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,16 +27,16 @@ export default function Home() {
       return;
     }
     if (f.size > MAX_BYTES) {
-      setError(`File must be under ${MAX_SIZE_MB} MB`);
+      setError(t(locale, 'fileTooLarge', { max: String(MAX_SIZE_MB) }));
       setFile(null);
       return;
     }
     setFile(f);
-  }, []);
+  }, [locale]);
 
   const handleUpload = useCallback(async () => {
     if (!file) {
-      setError('Choose a file first');
+      setError(t(locale, 'chooseFileFirst'));
       return;
     }
     setLoading(true);
@@ -40,7 +44,7 @@ export default function Home() {
     try {
       const questions: QuizQuestion[] = await parseDocument(file);
       if (!questions.length) {
-        setError('No questions found in the document. Use a file with clear questions and answer options.');
+        setError(t(locale, 'noQuestionsFound'));
         setLoading(false);
         return;
       }
@@ -59,11 +63,11 @@ export default function Home() {
       saveSession(session);
       navigate('/quiz');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : t(locale, 'uploadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [file, navigate]);
+  }, [file, navigate, locale]);
 
   const resumeSession = useCallback(() => {
     if (progress.session) navigate('/quiz');
@@ -72,18 +76,22 @@ export default function Home() {
   return (
     <div className="home">
       <header className="home-header">
-        <h1>Notes Reviewer</h1>
-        <p className="tagline">Upload your Q&amp;A document, get quizzed one question at a time.</p>
+        <div className="lang-switcher">
+          <button type="button" className={locale === 'en' ? 'active' : ''} onClick={() => setLocale('en')}>EN</button>
+          <button type="button" className={locale === 'cs' ? 'active' : ''} onClick={() => setLocale('cs')}>ČS</button>
+        </div>
+        <h1>{t(locale, 'appTitle')}</h1>
+        <p className="tagline">{t(locale, 'tagline')}</p>
         {progress.streak > 0 && (
-          <div className="streak-badge" title="Learning streak (days in a row)">
-            🔥 {progress.streak} day streak
+          <div className="streak-badge" title={t(locale, 'streakTitle')}>
+            🔥 {t(locale, 'streakDays', { n: String(progress.streak) })}
           </div>
         )}
       </header>
 
       <section className="upload-section">
         <label className="file-label">
-          <span className="file-button">Choose file (max {MAX_SIZE_MB} MB)</span>
+          <span className="file-button">{t(locale, 'chooseFile', { max: String(MAX_SIZE_MB) })}</span>
           <input
             type="file"
             accept=".txt,.md,.pdf"
@@ -94,7 +102,7 @@ export default function Home() {
         </label>
         {file && (
           <p className="file-name">
-            {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            {t(locale, 'fileName', { name: file.name, size: (file.size / 1024).toFixed(1) })}
           </p>
         )}
         {error && <p className="error">{error}</p>}
@@ -104,26 +112,26 @@ export default function Home() {
           onClick={handleUpload}
           disabled={!file || loading}
         >
-          {loading ? 'Parsing with AI…' : 'Start quiz'}
+          {loading ? t(locale, 'parsingWithAI') : t(locale, 'startQuiz')}
         </button>
       </section>
 
       {progress.session && progress.session.questions.length > 0 && (
         <section className="resume-section">
-          <p>You have a session in progress: {progress.session.documentName}</p>
+          <p>{t(locale, 'sessionInProgress')}: {progress.session.documentName}</p>
           <button type="button" className="secondary-button" onClick={resumeSession}>
-            Resume quiz
+            {t(locale, 'resumeQuiz')}
           </button>
         </section>
       )}
 
       {progress.history.length > 0 && (
         <section className="history-section">
-          <h2>Recent sessions</h2>
+          <h2>{t(locale, 'recentSessions')}</h2>
           <ul className="history-list">
             {progress.history.slice(0, 5).map((s, i) => (
               <li key={s.documentId + i}>
-                {s.documentName} — {s.correctCount + s.wrongCount} answered, {s.correctCount} correct
+                {s.documentName} — {t(locale, 'answeredCorrect', { total: String(s.correctCount + s.wrongCount), correct: String(s.correctCount) })}
               </li>
             ))}
           </ul>

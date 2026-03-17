@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { getExplanation } from '../api';
 import { getSession, saveSession } from '../storage';
 import type { QuizQuestion as Q, QuizSession, ExplainResponse } from '../types';
+import { useLocale } from '../LocaleContext';
+import { t } from '../i18n';
 import './Quiz.css';
 
 export default function Quiz() {
   const navigate = useNavigate();
+  const { locale, setLocale } = useLocale();
   const [session, setSession] = useState<QuizSession | null>(null);
   const [feedback, setFeedback] = useState<{
     type: 'correct' | 'wrong';
@@ -68,13 +71,13 @@ export default function Quiz() {
           saveSession(next);
           setFeedback({ type: 'wrong', explain });
         } catch {
-          setFeedback({ type: 'wrong', explain: { explanation: 'Could not load explanation.', tip: '' } });
+          setFeedback({ type: 'wrong', explain: { explanation: t(locale, 'loadExplanationFailed'), tip: '' } });
         } finally {
           setLoadingExplain(false);
         }
       }
     },
-    [session, current, persist]
+    [session, current, persist, locale]
   );
 
   const goNext = useCallback(() => {
@@ -94,12 +97,16 @@ export default function Quiz() {
     return (
       <div className="quiz quiz-done">
         <div className="done-card">
-          <h2>Session complete</h2>
+          <div className="lang-switcher">
+            <button type="button" className={locale === 'en' ? 'active' : ''} onClick={() => setLocale('en')}>EN</button>
+            <button type="button" className={locale === 'cs' ? 'active' : ''} onClick={() => setLocale('cs')}>ČS</button>
+          </div>
+          <h2>{t(locale, 'sessionComplete')}</h2>
           <p className="stats">
-            {session.correctCount} correct, {session.wrongCount} wrong
+            {t(locale, 'stats', { correct: String(session.correctCount), wrong: String(session.wrongCount) })}
           </p>
           <button type="button" className="primary-button" onClick={() => navigate('/')}>
-            Back to home
+            {t(locale, 'backToHome')}
           </button>
         </div>
       </div>
@@ -114,7 +121,7 @@ export default function Quiz() {
     <div className="quiz">
       <div className="quiz-progress">
         <span>
-          Question {session.currentIndex + 1} of {session.questions.length}
+          {t(locale, 'questionOf', { current: String(session.currentIndex + 1), total: String(session.questions.length) })}
         </span>
         <div className="progress-bar">
           <div
@@ -146,29 +153,29 @@ export default function Quiz() {
 
       {feedback?.type === 'correct' && (
         <div className="feedback correct">
-          <span>Correct!</span>
+          <span>{t(locale, 'correct')}</span>
         </div>
       )}
 
       {showFeedback && feedback.explain && (
         <div className="feedback wrong">
-          <h3>Explanation</h3>
+          <h3>{t(locale, 'explanation')}</h3>
           <p>{feedback.explain.explanation}</p>
           {feedback.explain.tip && (
             <>
-              <h3>Tip to remember</h3>
+              <h3>{t(locale, 'tipToRemember')}</h3>
               <p className="tip">{feedback.explain.tip}</p>
             </>
           )}
           <button type="button" className="primary-button" onClick={goNext}>
-            Next question
+            {t(locale, 'nextQuestion')}
           </button>
         </div>
       )}
 
       {loadingExplain && (
         <div className="feedback wrong">
-          <p>Loading explanation…</p>
+          <p>{t(locale, 'loadingExplanation')}</p>
         </div>
       )}
     </div>

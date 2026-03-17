@@ -1,7 +1,19 @@
 import type { QuizQuestion, ExplainResponse } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const IS_VERCEL = !API_BASE && typeof window !== 'undefined' && !/^localhost$|^127\.0\.0\.1$/.test(window.location.hostname);
+/** Use base64 JSON only when frontend points to external API (e.g. Vercel). Same-origin (Render, localhost) uses FormData. */
+const USE_BASE64_API = !!API_BASE;
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+}
 
 const AUTH_STORAGE_KEY = 'app_password';
 
@@ -35,7 +47,7 @@ export async function parseDocument(file: File): Promise<QuizQuestion[]> {
   const url = `${API_BASE}/api/parse-document`;
   let res: Response;
 
-  if (IS_VERCEL) {
+  if (USE_BASE64_API) {
     if (file.size > 3 * 1024 * 1024) {
       throw new Error('File too large for online use (max 3 MB). Run locally with npm run dev:all for 50 MB support.');
     }
@@ -44,7 +56,7 @@ export async function parseDocument(file: File): Promise<QuizQuestion[]> {
     if (isPdf) {
       const buf = await file.arrayBuffer();
       body = {
-        fileBase64: btoa(String.fromCharCode(...new Uint8Array(buf))),
+        fileBase64: arrayBufferToBase64(buf),
         mimeType: 'application/pdf',
       };
     } else {
