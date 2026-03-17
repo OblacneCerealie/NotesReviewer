@@ -126,7 +126,8 @@ export async function getExplanation(
   question: string,
   options: string[],
   correctIndex: number,
-  selectedIndex: number
+  selectedIndex: number,
+  locale?: string
 ): Promise<ExplainResponse> {
   const res = await fetch(`${API_BASE}/api/explain`, {
     method: 'POST',
@@ -136,6 +137,7 @@ export async function getExplanation(
       options,
       correctIndex,
       selectedIndex,
+      locale: locale || 'en',
     }),
   });
   if (res.status === 401) {

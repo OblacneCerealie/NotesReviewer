@@ -56,7 +56,8 @@ export default function Quiz() {
             current.question,
             current.options,
             current.correctIndex,
-            selectedIndex
+            selectedIndex,
+            locale
           );
           const next: QuizSession = {
             ...session,

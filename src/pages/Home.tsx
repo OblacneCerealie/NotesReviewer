@@ -11,6 +11,15 @@ const isLocalhost = typeof window !== 'undefined' && /^localhost$|^127\.0\.0\.1$
 const MAX_SIZE_MB = isLocalhost ? 50 : 3;
 const MAX_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const { locale, setLocale } = useLocale();
@@ -48,11 +57,12 @@ export default function Home() {
         setLoading(false);
         return;
       }
+      const shuffledQuestions = shuffle(questions);
       const documentId = `${file.name}-${Date.now()}`;
       const session = {
         documentId,
         documentName: file.name,
-        questions,
+        questions: shuffledQuestions,
         currentIndex: 0,
         correctCount: 0,
         wrongCount: 0,

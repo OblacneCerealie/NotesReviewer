@@ -136,13 +136,14 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
 
 app.post('/api/explain', async (req, res) => {
   try {
-    const { question, options, correctIndex, selectedIndex } = req.body;
+    const { question, options, correctIndex, selectedIndex, locale } = req.body;
     if (!question || !Array.isArray(options) || correctIndex == null) {
       return res.status(400).json({ error: 'Missing question, options, or correctIndex' });
     }
     const correctAnswer = options[Number(correctIndex)] ?? 'Unknown';
     const selectedAnswer = options[Number(selectedIndex)] ?? 'Unknown';
-    const prompt = `Question: ${question}\nOptions: ${options.join(' | ')}\nCorrect answer: ${correctAnswer}\nThe user incorrectly selected: ${selectedAnswer}\n\nRespond with exactly two short paragraphs: 1) "EXPLANATION:" then 2-3 sentences explaining why the correct answer is right. 2) "TIP:" then one short memorable tip to remember this. Keep it concise.`;
+    const langInstruction = locale === 'cs' ? 'Write the EXPLANATION and TIP in Czech (čeština).' : 'Write the EXPLANATION and TIP in English.';
+    const prompt = `Question: ${question}\nOptions: ${options.join(' | ')}\nCorrect answer: ${correctAnswer}\nThe user incorrectly selected: ${selectedAnswer}\n\n${langInstruction}\n\nRespond with exactly two short paragraphs: 1) "EXPLANATION:" then 2-3 sentences explaining why the correct answer is right. 2) "TIP:" then one short memorable tip to remember this. Keep it concise.`;
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
