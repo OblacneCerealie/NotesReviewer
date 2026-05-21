@@ -22,6 +22,7 @@ export const translations = {
   password: 'Heslo',
   loading: 'Načítání…',
   questionOf: 'Otázka {current} z {total}',
+  quizProgress: '{percent} %',
   correct: 'Správně!',
   explanation: 'Vysvětlení',
   tipToRemember: 'Tip na zapamatování',

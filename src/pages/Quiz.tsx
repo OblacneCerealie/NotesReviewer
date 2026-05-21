@@ -4,6 +4,11 @@ import { getExplanation } from '../api';
 import { getSession, saveSession, saveQuiz } from '../storage';
 import type { QuizQuestion as Q, QuizSession, ExplainResponse } from '../types';
 import { t } from '../i18n';
+import {
+  getCorrectIndices,
+  isAnswerCorrect,
+  quizProgressPercent,
+} from '../quizUtils';
 import './Quiz.css';
 
 export default function Quiz() {
@@ -36,7 +41,7 @@ export default function Quiz() {
   const handleAnswer = useCallback(
     async (selectedIndex: number) => {
       if (!session || current === undefined) return;
-      const correct = selectedIndex === current.correctIndex;
+      const correct = isAnswerCorrect(current, selectedIndex);
       if (correct) {
         const next: QuizSession = {
           ...session,
@@ -52,7 +57,7 @@ export default function Quiz() {
           const explain = await getExplanation(
             current.question,
             current.options,
-            current.correctIndex,
+            getCorrectIndices(current),
             selectedIndex
           );
           const next: QuizSession = {
@@ -139,18 +144,21 @@ export default function Quiz() {
   if (!current) return null;
 
   const showFeedback = feedback?.type === 'wrong' && feedback.explain;
+  const correctIndices = getCorrectIndices(current);
+  const progressPct = quizProgressPercent(session.currentIndex, session.questions.length);
+  const lastWrong = session.wrongAnswers[session.wrongAnswers.length - 1];
 
   return (
     <div className="quiz">
       <div className="quiz-progress">
-        <span>
-          {t('questionOf', { current: String(session.currentIndex + 1), total: String(session.questions.length) })}
-        </span>
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${((session.currentIndex + 1) / session.questions.length) * 100}%` }}
-          />
+        <div className="quiz-progress-header">
+          <span>
+            {t('questionOf', { current: String(session.currentIndex + 1), total: String(session.questions.length) })}
+          </span>
+          <span className="quiz-progress-percent">{t('quizProgress', { percent: String(progressPct) })}</span>
+        </div>
+        <div className="progress-bar" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+          <div className="progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
       </div>
 
@@ -164,9 +172,9 @@ export default function Quiz() {
               className="option"
               onClick={() => handleAnswer(i)}
               disabled={!!feedback || loadingExplain}
-              data-correct={feedback?.type === 'correct' ? i === current.correctIndex : undefined}
-              data-correct-option={showFeedback && i === current.correctIndex ? true : undefined}
-              data-selected-wrong={showFeedback && i === session.wrongAnswers[session.wrongAnswers.length - 1]?.selectedIndex ? true : undefined}
+              data-correct={feedback?.type === 'correct' ? correctIndices.includes(i) : undefined}
+              data-correct-option={showFeedback && correctIndices.includes(i) ? true : undefined}
+              data-selected-wrong={showFeedback && lastWrong?.selectedIndex === i ? true : undefined}
             >
               {opt}
             </button>

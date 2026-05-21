@@ -1,4 +1,5 @@
 import type { QuizQuestion, ExplainResponse } from './types';
+import { normalizeQuestions } from './quizUtils';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 /** Use base64 JSON only when frontend points to external API (e.g. Vercel). Same-origin (Render, localhost) uses FormData. */
@@ -82,16 +83,7 @@ export async function parseDocument(file: File): Promise<QuizQuestion[]> {
     throw new Error(err.error || 'Failed to parse document');
   }
   const data = await res.json();
-  if (!Array.isArray(data.questions)) return [];
-  return data.questions.filter(
-    (q: unknown) =>
-      q &&
-      typeof q === 'object' &&
-      'question' in q &&
-      'options' in q &&
-      Array.isArray((q as QuizQuestion).options) &&
-      typeof (q as QuizQuestion).correctIndex === 'number'
-  );
+  return normalizeQuestions(data.questions);
 }
 
 export async function parseDocumentText(text: string): Promise<QuizQuestion[]> {
@@ -110,22 +102,13 @@ export async function parseDocumentText(text: string): Promise<QuizQuestion[]> {
     throw new Error(err.error || 'Failed to parse document');
   }
   const data = await res.json();
-  if (!Array.isArray(data.questions)) return [];
-  return data.questions.filter(
-    (q: unknown) =>
-      q &&
-      typeof q === 'object' &&
-      'question' in q &&
-      'options' in q &&
-      Array.isArray((q as QuizQuestion).options) &&
-      typeof (q as QuizQuestion).correctIndex === 'number'
-  );
+  return normalizeQuestions(data.questions);
 }
 
 export async function getExplanation(
   question: string,
   options: string[],
-  correctIndex: number,
+  correctIndices: number[],
   selectedIndex: number
 ): Promise<ExplainResponse> {
   const res = await fetch(`${API_BASE}/api/explain`, {
@@ -134,7 +117,8 @@ export async function getExplanation(
     body: JSON.stringify({
       question,
       options,
-      correctIndex,
+      correctIndex: correctIndices[0],
+      correctIndices: correctIndices.length > 1 ? correctIndices : undefined,
       selectedIndex,
       locale: 'cs',
     }),

@@ -1,7 +1,10 @@
 export interface QuizQuestion {
   question: string;
   options: string[];
+  /** Primary correct option (first when multiple are correct). */
   correctIndex: number;
+  /** Present when the answer sheet lists more than one correct option for this question. */
+  correctIndices?: number[];
 }
 
 export interface QuizSession {

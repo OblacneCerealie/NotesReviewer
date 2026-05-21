@@ -1,5 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
 
+function resolveCorrectIndices(body) {
+  const { options, correctIndex, correctIndices } = body;
+  if (Array.isArray(correctIndices) && correctIndices.length > 0) {
+    return correctIndices
+      .map((i) => Number(i))
+      .filter((i) => Number.isInteger(i) && i >= 0 && i < options.length);
+  }
+  if (correctIndex != null) {
+    const i = Number(correctIndex);
+    if (Number.isInteger(i) && i >= 0 && i < options.length) return [i];
+  }
+  return [];
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -11,16 +25,25 @@ export default async function handler(req, res) {
   if (!key) return res.status(500).json({ error: 'GEMINI_KEY not configured' });
 
   const ai = new GoogleGenAI({ apiKey: key });
-  const { question, options, correctIndex, selectedIndex, locale } = req.body || {};
+  const body = req.body || {};
+  const { question, options, selectedIndex, locale } = body;
 
-  if (!question || !Array.isArray(options) || correctIndex == null) {
-    return res.status(400).json({ error: 'Missing question, options, or correctIndex' });
+  if (!question || !Array.isArray(options)) {
+    return res.status(400).json({ error: 'Missing question or options' });
   }
 
-  const correctAnswer = options[Number(correctIndex)] ?? 'Unknown';
+  const indices = resolveCorrectIndices(body);
+  if (indices.length === 0) {
+    return res.status(400).json({ error: 'Missing correctIndex or correctIndices' });
+  }
+
+  const correctAnswers = indices.map((i) => options[i] ?? 'Unknown').join('; ');
   const selectedAnswer = options[Number(selectedIndex)] ?? 'Unknown';
   const langInstruction = locale === 'cs' ? 'Write the EXPLANATION and TIP in Czech (čeština).' : 'Write the EXPLANATION and TIP in English.';
-  const prompt = `Question: ${question}\nOptions: ${options.join(' | ')}\nCorrect answer: ${correctAnswer}\nThe user incorrectly selected: ${selectedAnswer}\n\n${langInstruction}\n\nRespond with exactly two short paragraphs: 1) "EXPLANATION:" then 2-3 sentences explaining why the correct answer is right. 2) "TIP:" then one short memorable tip to remember this. Keep it concise.`;
+  const multiNote = indices.length > 1
+    ? ' There are multiple correct answers; explain why each correct option is right.'
+    : '';
+  const prompt = `Question: ${question}\nOptions: ${options.join(' | ')}\nCorrect answer(s): ${correctAnswers}\nThe user incorrectly selected: ${selectedAnswer}\n\n${langInstruction}${multiNote}\n\nRespond with exactly two short paragraphs: 1) "EXPLANATION:" then 2-3 sentences explaining why the correct answer(s) are right. 2) "TIP:" then one short memorable tip to remember this. Keep it concise.`;
 
   try {
     const response = await ai.models.generateContent({
